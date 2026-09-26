@@ -15,7 +15,7 @@ Patients arrive at the hospital, enter available test units, wait for the unit t
 ### Files
 
 - `2016510001.c` contains the simulation source code.
-- `screenshots/result-start.jpg` and `screenshots/result-end.jpg` contain sample output screenshots.
+- `screenshots/program-output.png` contains a sample output screenshot.
 
 ### How to Build
 
@@ -37,9 +37,7 @@ The output order can change between runs because multiple threads execute concur
 
 ### Screenshots
 
-![Initial output](screenshots/result-start.jpg)
-
-![Final output](screenshots/result-end.jpg)
+![Program output](screenshots/program-output.png)
 
 ## Turkce
 
@@ -56,7 +54,7 @@ Hastalar hastaneye gelir, uygun test birimlerine girer, birimin dolmasini bekler
 ### Dosyalar
 
 - `2016510001.c` simulasyon kaynak kodunu icerir.
-- `screenshots/result-start.jpg` ve `screenshots/result-end.jpg` ornek cikti ekran goruntulerini icerir.
+- `screenshots/program-output.png` ornek cikti ekran goruntusunu icerir.
 
 ### Nasil Derlenir
 
@@ -78,6 +76,4 @@ Program birden fazla thread kullandigi icin cikti sirasi her calistirmada degise
 
 ### Ekran Goruntuleri
 
-![Baslangic ciktisi](screenshots/result-start.jpg)
-
-![Son cikti](screenshots/result-end.jpg)
+![Program ciktisi](screenshots/program-output.png)
