@@ -2,241 +2,205 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <pthread.h>
-#include <semaphore.h> 
+#include <semaphore.h>
+#include <time.h>
 
-///////////////////////////// Definig Constanst
 #define MAX_PATIENT 30
-#define MAX_ROOM 9
+#define MAX_ROOM 8
+#define UNIT_CAPACITY 3
 
-/////////////////////// Necessary Functions 
-void randwait();
-int FindUnitID();
-int NumberOfPatientInUnit(int index);  
+void randwait(void);
+int find_unit_id(void);
+int number_of_patient_in_unit(int index);
 
-
-
-/////////////////////////// Thread Function 
 void *patient(void *num);
 void *room(void *num2);
 
-///////////////////////////// Semaphoresss 
 sem_t test_unit_sem[MAX_ROOM];
 sem_t vaccinate[MAX_ROOM];
 sem_t mutex[MAX_ROOM];
 
-int allDONE = 0;
-
-int oda_kontrol_counter = MAX_PATIENT/2;
-
+int all_done = 0;
+int room_control_counter = MAX_PATIENT / 2;
 int counter = MAX_PATIENT;
 
-int main(int argc, char *argv[]){
-
+int main(void)
+{
     pthread_t roomtid[MAX_ROOM];
     pthread_t patientid[MAX_PATIENT];
 
-    int i ;
+    int i;
     int j;
-    int Number[MAX_PATIENT];
-    int Number2[MAX_ROOM];
+    int patient_numbers[MAX_PATIENT];
+    int room_numbers[MAX_ROOM];
 
-    for ( i = 1; i <= MAX_PATIENT; i++)
-    {
-        Number[i] = i;
-    }
-    for ( j = 1; j <MAX_ROOM; j++)
-    {
-        Number2[j]= j;
+    srand((unsigned int)time(NULL));
+
+    for (i = 0; i < MAX_PATIENT; i++) {
+        patient_numbers[i] = i + 1;
     }
 
-        ///////////////////////////////////// Semaphore Inıtiliaze
-    for ( i = 1; i < MAX_ROOM; i++)
-    {
-       sem_init( &vaccinate[i], 0, 0);
-       sem_init( &test_unit_sem[i], 0, 3);
-       sem_init( &mutex[i], 0, 1);
+    for (j = 0; j < MAX_ROOM; j++) {
+        room_numbers[j] = j + 1;
     }
-  
 
-    
-    /////////////////////////////////////// Thread Creationsss
-    for ( j = 1; j < MAX_ROOM; j++)
-    {
-        pthread_create(&roomtid[j],NULL,room, (void *)&Number2[j]);
+    for (i = 0; i < MAX_ROOM; i++) {
+        sem_init(&vaccinate[i], 0, 0);
+        sem_init(&test_unit_sem[i], 0, UNIT_CAPACITY);
+        sem_init(&mutex[i], 0, 1);
     }
-    
-    for ( i = 1; i <= MAX_PATIENT; i++)
-    {
+
+    for (j = 0; j < MAX_ROOM; j++) {
+        pthread_create(&roomtid[j], NULL, room, (void *)&room_numbers[j]);
+    }
+
+    for (i = 0; i < MAX_PATIENT; i++) {
         randwait();
-        pthread_create(&patientid[i],NULL,patient, (void *)&Number[i]);
-        
+        pthread_create(&patientid[i], NULL, patient, (void *)&patient_numbers[i]);
     }
 
-        //  Join the patient thread .
-    for ( i = 1; i <= MAX_PATIENT; i++)
-    {
-        pthread_join(patientid[i],NULL);
-       
+    for (i = 0; i < MAX_PATIENT; i++) {
+        pthread_join(patientid[i], NULL);
     }
 
+    all_done = 1;
 
-    
-    allDONE = 1;
-    
-    
-
-    //// Join the room thread .
-
-    for ( j = 1; j < MAX_ROOM; j++)
-    {
-         pthread_join(roomtid[j],NULL);
-         
+    for (j = 0; j < MAX_ROOM; j++) {
+        pthread_join(roomtid[j], NULL);
     }
-    
-   
+
+    for (i = 0; i < MAX_ROOM; i++) {
+        sem_destroy(&vaccinate[i]);
+        sem_destroy(&test_unit_sem[i]);
+        sem_destroy(&mutex[i]);
+    }
+
     printf("All of patients have vaccinated and DEU Hospital has been closed\n");
 
     return 0;
 }
 
-void *patient(void *number){
+void *patient(void *number)
+{
     int num = *(int *)number;
     int numberofpatient;
-    int roomid_index = FindUnitID();
+    int roomid_index = find_unit_id();
 
 
-    sem_wait(&mutex[roomid_index]); ///////////////////////// Begin to critical section .
-    
+    sem_wait(&mutex[roomid_index]);
+
     sem_post(&mutex[roomid_index]);
 
-    sem_wait(&test_unit_sem[roomid_index]); //////// Patient entering test unit .
+    sem_wait(&test_unit_sem[roomid_index]);
 
-    numberofpatient = NumberOfPatientInUnit(roomid_index);
+    numberofpatient = number_of_patient_in_unit(roomid_index);
 
     printf("Patient %d arrived at the hospital .. \n", num);
-    printf("Patient %d is entering  Covid-19 Test Unit %d \n",num,roomid_index);
+    printf("Patient %d is entering  Covid-19 Test Unit %d \n", num, roomid_index + 1);
 
-   ////////////////////////////////////// Unit state 
-
-    if (numberofpatient == 2)
-    {
-        printf("Last 2 people in Test Unit %d.\n",roomid_index);
-        printf("Test Unit %d,\n",roomid_index);
+    if (numberofpatient == 2) {
+        printf("Last 2 people in Test Unit %d.\n", roomid_index + 1);
+        printf("Test Unit %d,\n", roomid_index + 1);
         printf("[ X ] , [ ] , [ ] \n");
-    }
-    else if (numberofpatient == 1)
-    {
-        printf("Last 1 people in Test Unit %d.\n",roomid_index);
-        printf("Test Unit %d,\n",roomid_index);
+    } else if (numberofpatient == 1) {
+        printf("Last 1 people in Test Unit %d.\n", roomid_index + 1);
+        printf("Test Unit %d,\n", roomid_index + 1);
         printf("[ X ] , [ X ] , [ ] \n");
-    }
-    else if (numberofpatient == 0)
-    {
+    } else if (numberofpatient == 0) {
         sem_post(&vaccinate[roomid_index]);
-        printf("Test Unit %d is full.\n",roomid_index); /////// Lock the semaphore room .
+        printf("Test Unit %d is full.\n", roomid_index + 1);
         printf("[ X ] , [ X ] , [ X ] \n");
     }
+
+    return NULL;
 }
 
-void *room(void *number2){
-    
-    
+void *room(void *number2)
+{
     int num2 = *(int *)number2;
     int i;
-   
     int value;
-    printf("Test Unit %d is vantilating.\n",num2);
-    
-    while (!allDONE && counter!=0)
-    {
-        if (!allDONE || counter == 0)
-       {
-        if (counter == 0)
-       {
-           break;
-       }
+    int room_index = num2 - 1;
 
-       sem_getvalue(&vaccinate[num2],&value);
-       while (value==0 && counter!=0)
-       {
-           sem_getvalue(&vaccinate[num2],&value);
-           
-       }
-       
-         if (value ==1)
-         {
-              sem_wait(&vaccinate[num2]);//////////////////////////////////// CRITICAL SECTION IS STARTED ....... 
-              printf("Start vaccinating in Test Unit %d.\n",num2);
-              randwait(5);
-              
-         }
-         if (counter == 0)
-         {
-             break;
-         }
-         
-           
-            printf("Test Unit %d is full.\n",num2);
-            sleep(1);
-           
-            sem_wait(&mutex[num2]);
-            
-            
-            for ( i = 1; i <= 3; i++)
-            {
-                sem_post(&test_unit_sem[num2]); ///////// Patient is leaving the critical sectionn ...
-                counter = counter -1;
+    printf("Test Unit %d is ventilating.\n", num2);
+
+    while (!all_done && counter != 0) {
+        if (!all_done || counter == 0) {
+            if (counter == 0) {
+                break;
             }
-            printf("Test Unit %d is vantilating.\n",num2);
+
+            sem_getvalue(&vaccinate[room_index], &value);
+            while (value == 0 && counter != 0) {
+                sem_getvalue(&vaccinate[room_index], &value);
+            }
+
+            if (value == 1) {
+                sem_wait(&vaccinate[room_index]);
+                printf("Start vaccinating in Test Unit %d.\n", num2);
+                randwait();
+            }
+
+            if (counter == 0) {
+                break;
+            }
+
+            printf("Test Unit %d is full.\n", num2);
+            sleep(1);
+
+            sem_wait(&mutex[room_index]);
+
+            for (i = 0; i < UNIT_CAPACITY; i++) {
+                sem_post(&test_unit_sem[room_index]);
+                counter = counter - 1;
+            }
+
+            printf("Test Unit %d is ventilating.\n", num2);
             randwait();
 
-            sem_post(&mutex[num2]); ///// Open the test unit ..
-            printf("Test Unit %d is empty.\n",num2);    
-            
-      }
-       
-    }   
+            sem_post(&mutex[room_index]);
+            printf("Test Unit %d is empty.\n", num2);
+        }
+    }
 
-    printf("Test Unit %d is closed..\n",num2); 
+    printf("Test Unit %d is closed..\n", num2);
+    return NULL;
 }
 
-void randwait() {
-     int random = rand()%3+1;
-     sleep(random);
+void randwait(void)
+{
+    int random = rand() % 3 + 1;
+    sleep(random);
 }
 
-int FindUnitID(){ //////// Find to available room id . 
+int find_unit_id(void)
+{
     int i;
     int min_room = 3;
-    int index ;
+    int index = 0;
     int value;
-    
-    if (oda_kontrol_counter != 0)
-    {
-        index =rand()%8+1;
-        oda_kontrol_counter = oda_kontrol_counter - 1 ;
-    }
-    else
-    {
-    
-        for ( i = 1; i < MAX_ROOM; i++)
-        {
-            sem_getvalue(&test_unit_sem[i],&value);
-            if(value <= min_room && value != 0)
-            {
-            min_room = value;
-            index = i;
+
+    if (room_control_counter != 0) {
+        index = rand() % MAX_ROOM;
+        room_control_counter = room_control_counter - 1;
+    } else {
+        for (i = 0; i < MAX_ROOM; i++) {
+            sem_getvalue(&test_unit_sem[i], &value);
+            if (value <= min_room && value != 0) {
+                min_room = value;
+                index = i;
             }
-        } 
+        }
     }
+
     return index;
 }
 
-int NumberOfPatientInUnit(int index){ ////////////Find to the number of test unit ....
-    int value ;
-    
+int number_of_patient_in_unit(int index)
+{
+    int value;
 
-    sem_getvalue(&test_unit_sem[index],&value);
+    sem_getvalue(&test_unit_sem[index], &value);
 
     return value;
 }
